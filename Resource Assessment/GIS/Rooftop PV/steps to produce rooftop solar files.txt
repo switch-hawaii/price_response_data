@@ -1,0 +1,81 @@
+Run download_google_roof_images.py. This will create a collection of geotiffs showing available roof patches in roof_tiffs/.
+
+In QGIS, use Raster -> Miscellaneous -> Build Virtual Raster to create oahu_roofs.vrt from all the roof tiffs.
+
+Download Census/Tiger shapefile for U.S. counties (e.g., from https://www2.census.gov/geo/tiger/TIGER2016/COUNTY/tl_2016_us_county.zip)
+Copy Hawaii counties to new shapefile "/Users/matthias/Dropbox/Research/shared/Switch-Hawaii/switch-hawaii-studies/database/GIS/General/Hawaii Counties.shp"
+Vector -> Geometry Tools -> Multipart to Single Part
+    Input line or polygon layer: Hawaii Counties
+    Output shapfile: /tmp/hawaii_county_parts.shp
+
+Merge two parts of Molokai into one.
+Delete small islands (all northwest of Kauai, Ni'ihau and Ka'ula west of Kauai)
+Split off Kahoolawe (west of Maui)
+Remove unneeded attribute fields.
+Label each polygon with island's name.
+This gives polygons with about 4 mile buffer offshore.
+
+make grid matching nsrdb grid (0.04 degrees)
+Processing Toolbox -> QGIS geoalgorithms -> Vector creation tools -> create grid
+    Grid type: Rectangle (**polygon**)
+    Grid extent: -159.88, -154.72, 18.83, 22.31 (covers all islands)
+    (could use -158.32, -157.64, 21.23, 21.75 (cell centers: -158.3, -157.66, 21.25, 21.73) for Oahu only
+    Horizontal spacing: 0.04
+    Vertical spacing: 0.04
+    Grid CRS: EPSG:4269 or 4326    <- 4326 (WGS84) matches google maps; 4269 (NAD83) matches DEM data, may be more widely used
+    Grid: /Users/matthias/Dropbox/Research/shared/Switch-Hawaii/switch-hawaii-studies/database/GIS/General/nsrdb_cell.shp
+
+Use Field Calculator toolbar button to create columns in nsrdb_cell:
+    nsrdb_lat (decimal, 7, 2) = (top + bottom)/2
+    nsrdb_lon (decimal, 7, 2) = ("left"+"right")/2
+    nsrdb_id (int, 6) = @row_number
+
+Intersect nsrdb_cell and load_zones shapefiles, to get NSRDB grid cells within each load zone
+Vector -> Geoprocessing Tools -> Intersect
+    input vector layer: load_zones
+    intersect layer: nsrdb_cell
+    Output shapefile: /tmp/load_zone_nsrdb_cell.shp (add to map)
+
+# NOTE: ../General/load_zone_nsrdb_cell.shp could potentially be used instead of 
+# ../Utility-Scale Solar Sites/solar_cluster_nsrdb_grid.shp and/or ../Utility-Scale Solar Sites/nsrdb_grid.shp
+# This would be especially relevant if the utility-scale solar code switches to automatic clustering
+# instead of manual clustering.
+
+Calculate roof area in each cell of load_zone_nsrdb_cell.shp in square meters:
+    use Plugins -> Manage Plugins and turn on Zonal Statistics plugin.
+    Use Raster -> Zonal Statistics plugin to calculate various statistics for each polygon in load_zone_nsrdb_cell.shp:
+        raster layer: oahu_roofs
+        polygon layer: load_zone_nsrdb_cell
+        output column prefix: cov_
+        Statistics to calculate: mean (only)
+    (may take 15-30 minutes)
+    Project -> Project Properties...
+        CRS: "EPSG:26904 - NAD83 / UTM Zone 4N"
+    Vector -> Geometry Tools -> Export/Add Geometry Columns...
+        Input vector layer: load_zone_nsrdb_cell.shp
+        Calculate using: Project CRS
+    Select load_zone_nsrdb_cell layer and click on Field Calculator on toolbar
+        Create a new field: yes
+        Output field name: roof_area
+        Output field type: Decimal (15, 3)
+        Expression: cov_mean * "AREA"
+    Click the pencil on the toolbar to turn off editing mode and save changes
+
+(Alternatively, the step above could use Field Calculator to calculate lz_nc_area = $area, but only if the layer uses lat/lon coordinates; this fails if it uses a UTM coordinate system; see http://gis.stackexchange.com/questions/76810/field-calculator-returning-incorrect-length-and-area-values/199194.)
+
+use Processing Toolbox -> QGIS geoalgorithms -> Vector table tools -> Refactor fields to rename fields as follows:
+    Input layer: load_zone_nsrdb_cell
+    load_zone, nsrdb_id, nsrdb_lat, nsrdb_lon (keep)
+    lz_nc_area <- "AREA"
+    roof_covg <- cov_mean
+    roof_area (keep)
+    -> drop all others <-
+    Refactored: /Users/matthias/Dropbox/Research/shared/Switch-Hawaii/switch-hawaii-studies/database/GIS/General/load_zone_nsrdb_cell.shp
+
+right-click on layer and choose Save As...
+    Format: Comma Separated Values [CSV]
+    Save as: /Users/matthias/Dropbox/Research/Shared/Switch-Hawaii/switch-hawaii-studies/database/GIS/General/load_zone_nsrdb_cell.csv
+    Separator: comma (default)
+
+Eventually we will cluster nsrdb cells within each load zone into tranches based on hourly capacity factors, weighted by roof_area, and then calculate the average capacity factor for each tranche based on roof_area in each cell.
+

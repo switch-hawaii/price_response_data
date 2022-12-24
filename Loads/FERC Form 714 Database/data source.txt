@@ -1,0 +1,9 @@
+Data in this directory can be downloaded from here:
+
+https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric/data
+> Form 714 Data Downloads > 2006 - 2019 Form 714 Database
+
+Or directly from this link:
+https://www.ferc.gov/sites/default/files/2020-06/form714-database-June-2020.zip
+
+If these links don't work, try searching the web for "FERC Form 714 data download"

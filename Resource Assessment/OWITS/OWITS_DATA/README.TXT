@@ -1,0 +1,1 @@
+This folder contains only a few of the OWITS data files, for testing purposes. The full collection are on the LaCie removable drive.

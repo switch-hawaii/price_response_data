@@ -1,0 +1,208 @@
+Screening rules for utility-scale solar projects:
+- only zoned for agriculture or country
+- no Class A agricultural land
+- not golf courses
+- not within 50 meters of street centerlines (also filters out rural businesses and neighborhoods)
+- not steeper than 10% slope
+- allowed patch is at least 60 meters in all directions
+
+Steps to implement these rules (eventually preparing allowed_solar.tif geotiff and solar_cluster_nsrdb_grid_final.csv text file):
+
+download 1/3 arc-second ned data for Oahu area (2 1-degree-square tiles) from "get elevation data" link (http://viewer.nationalmap.gov/basic/?basemap=b1&category=ned,nedsrc&title=3DEP%20View) at http://nationalmap.gov/elevation.html (redirected from http://ned.usgs.gov). I used GridFloat format but other formats would be fine (GeoTIFF doesn't seem to be available)
+
+download the following shape files from http://planning.hawaii.gov/gis/download-gis-data-expanded/ :
+"Zoning, C&C of Honolulu" (oahzoning.shp)
+"Land Study Bureau Classification (LSB)	" (lsb.shp)
+"Roads – C&C of Honolulu" (oah_streets.shp)
+"Golf Courses" (golfcourses.shp)
+
+In qgis:
+- filter zoning file to only include agricultural and country zones ("ZONING_LAB" IN ('AG-1', 'AG-2', 'COUNTRY'))
+- filter land study bureau file to only include class A land ("TYPE" = 'A')
+
+- use Vector -> Geoprocessing Tools -> Difference to subtract class A land from agriculture and country land
+- use Vector -> Geoprocessing Tools -> Difference to subtract golf courses (golfcourses.shp) from available land
+- use Vector -> Geoprocessing Tools -> Buffer to create 50 meter buffer from centerline of all streets (oah_streets.shp)
+- use Vector -> Geoprocessing Tools -> Difference to subtract street buffers from available land
+  note: this removes most neighborhoods with homes from the dataset; another option would be to remove all census blocks
+  with population density (1000000 * pop10 / $area) > 100 people per km2, but that includes some blocks with large unpopulated parts; 
+  that also fails in qgis due to geometry problems with census/tabblock2010_15_pophu.shp
+- dissolve features together
+
+remove all polygons smaller than 30 meters across (note: you could probably skip these steps, since the final raster is also cleaned up similarly)
+- buffer new layer by -30 meters (Vector -> geoprocessing tools -> buffer)
+- buffer this layer by +45 meters; dissolve buffer results (avoid trimming corners of original)
+- intersect pre-buffering layer with this new layer to make a trimmed layer ("agriculture and country zoned - not class A or golf course or street 50m - cleaned.shp")
+
+- use Raster -> Miscellaneous -> Merge to combine the two elevation tiles for Oahu
+    - set "No data value" to -9999
+    - use Creation Options -> High Compression
+    - (might be able to avoid the next clipping step by zooming to the right extent and clicking "Use intersected extent" or by adding this to the gdal_merge command: -ul_lr -158.284 21.253 -157.656 21.714 [note: y ordering is opposite from Clipper])
+    - this gives: gdal_merge.py -n -9999 -a_nodata -9999 -co COMPRESS=DEFLATE -co PREDICTOR=2 -co ZLEVEL=9 -of GTiff -o "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem_merged.tif" "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/n22w158/floatn22w158_13.flt" "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/n22w159/floatn22w159_13.flt"
+
+- use Raster -> Extraction -> Clipper to trim the elevation raster
+    - use the Oahu bounding box: -158.284 to -157.656, 21.253 to 21.714
+    - use the same no data value and compression options as the Merge tool
+    - edit the command to include compression options from above
+    - This gives: gdal_translate -a_nodata -9999 -co COMPRESS=DEFLATE -co PREDICTOR=2 -co ZLEVEL=9 -projwin -158.284 21.714 -157.656 21.253 -of GTiff "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem_merged.tif" "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem_clipped.tif"
+
+use Raster -> Raster Calculator to perform a dummy calculation on the dem raster, which will round its bounding box to 5 decimal places (in degrees). Otherwise, later operations with the Raster Calculator will do this, and the new rasters won't match the DEM.
+    output layer: data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem_uncompressed.tif
+    extent: Current layer extent (from oahu_dem_clipped): -158.28407, -157.65611, 21.25306, 21.71407, 6782 x 4979, EPSG:4269
+    raster calculator expression: "oahu_dem_clipped@1"
+Note: after using the Raster Calculator, the no_data value will be -3.4028234663852886e+38 (maybe more digits?)
+
+Compress and save the oahu_dem raster with Raster -> Conversion -> Translate:
+    Input layer: data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem_uncompressed.tif
+    Output layer: data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem.tif
+    No data: [unchecked; retains nodata value from the original raster]
+    Creation Options: High Compression
+    
+- use Raster -> Analysis -> DEM (Terrain Models) to calculate (approximate) slope for each cell
+    - scale = 107447 (based on averaging meters per degree in the x and y directions at 21.5 degrees north): 
+      s = 111320 * 0.5 * (1 + cos(latitude*pi/180))
+    - Creation Options -> High Compression
+    - this gives: 
+      gdaldem slope "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_dem.tif" "data/Resource Assessment/GIS/Utility-Scale Solar Sites/ned/oahu_slope_107447.tif" -s 107447.0 -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=2 -co ZLEVEL=9
+
+- use Raster -> Raster Calculator to create a mask layer identifying flat areas:
+    output: oahu_slope_below_10
+    extent: click on oahu_slope_107447, then click "Current layer extent"
+    formula: 1 / ("oahu_slope_107447@1" <= 10)
+    note: in QGIS 2.14, you then have to use the display dialog to set the range to 1:1 (not needed in QGIS 2.10)
+
+- clip using Raster -> Extraction -> Clipper:
+    Input file (raster): oahu_slope_below_10.tif 
+    Output file: /tmp/allowed_raw.tif
+    No data value: 0 (uses 0 for missing data in new file)
+    Mask layer: "agriculture and country zoned - not class A or golf course or street 50m - cleaned.shp"
+    this gives: gdalwarp -dstnodata 0 -q -cutline "/Users/matthias/Dropbox/Research/Shared/Switch-Hawaii/switch-hawaii-studies/database/GIS/Utility-Scale Solar Sites/planning.hawaii.gov/agriculture and country zoned - not class A or golf course or street 50m - cleaned.shp" -tr 9.25921557063e-05 9.25908817032e-05 -of GTiff "/Users/matthias/Dropbox/Research/Shared/Switch-Hawaii/switch-hawaii-studies/database/GIS/Utility-Scale Solar Sites/ned/oahu_slope_below_10.tif" /tmp/allowed_raw.tif
+
+- invert using Raster -> Conversion -> Translate:
+    Input layer: /tmp/allowed_raw.tif
+    output: /tmp/allowed_inverted.tif
+    No data: 1  (leaves existing no-data=0 as valid values)
+    creation options: high compression
+    This gives: gdal_translate -co COMPRESS=DEFLATE -co PREDICTOR=2 -co ZLEVEL=9 -a_nodata 1 -of GTiff /tmp/allowed_raw.tif /tmp/allowed_inverted.tif
+
+- shrink allowed boundaries by 3 pixels (30 meters) (to clear out small flat areas):
+    Processing Toolbox -> Grass GIS 7 commands -> r.grow
+    input: allowed_inverted
+    radius: 3.010000 (Euclidian)
+    non-null -> 1   (uses 1 for all existing values)
+    grown -> 1
+    Expanded: [temporary file] (introduces 255 as no-data value)
+- Shift back onto original grid (r.grow adds a pixel at the top and left, and shifts the grid slightly)
+    Raster -> Raster Calculator
+    output: /tmp/allowed_inverted_grown.tif
+    extent: (take from allowed_inverted)
+    formula: "Expanded@1"
+    (this introduces -3.40282e+38 as no-data value, keeps 1 as valid values)
+- remove "Expanded" layer from QGIS
+- invert using Raster -> Conversion -> Translate:
+    input: allowed_inverted_grown
+    output: /tmp/allowed_shrunk
+    No data: 1  (treats 1 as no-data; leaves existing no-data=-3.40282e+38 as valid values)
+    creation options: high compression
+- expand allowed areas back to original boundaries (or maybe slightly further):
+    Processing Toolbox -> Grass GIS 7 commands -> r.grow
+    input: allowed_solar_shrunk
+    radius: 4.250000 (Euclidian)    (just enough to reach original corners without picking up slivers from regions one pixel away)
+    non-null -> 1
+    grown -> 1
+    Expanded: [temporary file]
+    (switches to 255 as no-data value, 1 as valid data)
+- Shift back onto original grid and filter out extra areas that got added during regrowth
+    Raster -> Raster Calculator
+    output: data/Resource Assessment/GIS/Utility-Scale Solar Sites/allowed_solar.tif
+    extent: (take from allowed_raw)
+    formula: "Expanded@1" * "allowed_raw"
+    (switches to -3.40282e+38 as no-data value, keeps 1 as valid values)    
+    (these are the solar-suitable raster cells)    
+
+
+- use Processing Toolbox -> SAGA -> Raster calculus -> Raster Calculator to create rasters of latitude and longitude based on allowed_solar.tif. Use ypos() and xpos() functions for these. Create as temporary files, then use QGIS Raster Calculator to shift back onto standard grid and save as allowed_solar_latitude and allowed_solar_longitude.
+- use Processing Toolbox -> SAGA -> Raster Tools -> Reclassify values to create raster showing coverage of suitable cells (0 or 1 for each pixel)
+    Grid: allowed_solar
+    Method: single
+    old value: -9999
+    new value: 0.0
+    operator: <=    (QGIS uses -3.4028234663852886e+38 as no-data value, so this will select those)
+    replace no data values: yes
+    new value for no data values: 0.0     (this is probably redundant with the settings above)
+    replace other values: no      (or you could set them to 1)
+    Reclassified grid: [Save to temporary file]
+- use Raster Calculator to shift back to original grid and save as allowed_solar_coverage.tif
+
+draw polygons around clusters of solar-suitable cells; assign each a unique ID; save as solar_clusters.shp
+
+# NOTE: ../General/load_zone_nsrdb_grid.shp could potentially be used instead of 
+# solar_cluster_nsrdb_grid.shp and/or nsrdb_grid.shp.
+# This would be especially relevant if the utility-scale solar code switches to automatic clustering
+# instead of manual clustering.
+
+make grid matching nsrdb grid (0.04 degrees)
+Processing -> QGIS geoalgorithms -> Vector creation tools -> create grid
+    Grid type: Rectangle (**polygon**)
+    Grid extent: -158.32, -157.64, 21.23, 21.75 (cell centers: -158.3, -157.66, 21.25, 21.73)
+    Horizontal spacing: 0.04
+    Vertical spacing: 0.04
+    Grid CRS: EPSG:4269 (NAD 93)   <- matches NED data
+    Grid: data/Resource Assessment/GIS/Utility-Scale Solar Sites/nsrdb_grid.shp
+
+Use Field Calculator toolbar button to create columns in nsrdb_grid:
+    nsrdb_lat (decimal, 7, 2) = (top + bottom)/2
+    nsrdb_lon (decimal, 7, 2) = ("left"+"right")/2
+    nsrdb_id (int, 6) = @row_number
+
+Make solar_cluster_nsrdb_grid.shp:
+    Vector -> Geoprocessing Tools -> Intersect...
+    Input vector layer: nsrdb_grid.shp
+    Intersect layer: solar_clusters.shp
+    Output shapfile: data/Resource Assessment/GIS/Utility-Scale Solar Sites/solar_cluster_nsrdb_grid.shp
+    
+Assign unique IDs for each polygon in solar_cluster_nsrdb_grid:
+    Select solar_cluster_nsrdb_grid layer and click on Field Calculator on toolbar
+    Create a new field: yes
+    Output field name: gridclstid
+    Output field type: Integer (7)
+    Expression: @row_number
+
+Calculate solar area in each polygon of solar_cluster_nsrdb_grid.shp in square meters:
+    use Plugins -> Manage Plugins and turn on Zonal Statistics plugin.
+    Use Raster -> Zonal Statistics plugin to calculate various statistics for each polygon in solar_cluster_nsrdb_grid.shp:
+        raster layer: allowed_solar_latitude, allowed_solar_longitude or allowed_solar_coverage (gives percent coverage)
+        polygon layer: solar_cluster_nsrdb_grid
+        output column prefix: lat_, lon_ or cov_
+        Statistics to calculate: mean (only)
+        # note: this seems to work well, but produces some false non-null values for lat and lon (coverage=0 in these cases)    
+    Project -> Project Properties...
+        CRS: "EPSG:26904 - NAD83 / UTM Zone 4N"
+    Vector -> Geometry Tools -> Export/Add Geometry Columns...
+        Input vector layer: solar_cluster_nsrdb_grid.shp
+        Calculate using: Project CRS
+    Select solar_cluster_nsrdb_grid layer and click on Field Calculator on toolbar
+        Create a new field: yes
+        Output field name: solar_area
+        Output field type: Decimal (15, 3)
+        Expression: cov_mean * "AREA"
+    Click the pencil on the toolbar to turn off editing mode and save changes
+
+(Alternatively, the step above could use Field Calculator to calculate gc_area = $area, but only if the layer uses lat/lon coordinates; this fails if it uses a UTM coordinate system; see http://gis.stackexchange.com/questions/76810/field-calculator-returning-incorrect-length-and-area-values/199194.)
+
+Eventually we will use solar areas and mean lat/lon for each polygon to calculate the mean lat/lon for each solar cluster; they will also be used to weight the capacity factors calculated for each nsrdb cell
+
+use Processing Toolbox -> QGIS geoalgorithms -> Vector table tools -> Refactor fields to rename fields as follows:
+    Input layer: solar_cluster_nsrdb_grid
+    gridclstid, nsrdb_id, cluster_id, nsrdb_lat, nsrdb_lon (keep)
+    lat_mean -> solar_lat
+    lon_mean -> solar_lon
+    cov_mean -> solar_covg
+    gc_area or "AREA" -> gc_area
+    solar_area (keep)
+    -> drop all others <-
+    Refactored: solar_cluster_nsrdb_grid_final.shp
+right-click on layer and choose Save As...
+    Format: Comma Separated Values [CSV]
+    Save as: data/Resource Assessment/GIS/Utility-Scale Solar Sites/solar_cluster_nsrdb_grid_final.csv
+    Separator: comma (default)

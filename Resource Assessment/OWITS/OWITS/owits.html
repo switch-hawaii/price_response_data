@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+  "http://www.w3.org/TR/html4/strict.dtd">
+  
+<html>
+<head>
+  <title> OWITS - Hawaii Integration and Transmission Study </title>
+   <meta name="Author" content="George Scott">
+  <meta name="Description" content="Your description here...">
+  <meta name="Keywords" content="Your keywords here...">
+</head>
+
+<body Bgcolor="#CCFFFF">
+
+<h1>OWITS - Hawaii Integration and Transmission Study</h1>
+
+<table border="1">
+  <tr>
+    <td><img src="D_Grid_small.jpg" title="D_grid"></td>
+    <td><img src="E_Grid_small.jpg" title="E_grid"></td>
+    <td><img src="F_Grid_small.jpg" title="F_grid"></td>
+    <td><img src="G_Grid_small.jpg" title="G_grid"></td>
+  </tr>
+</table>
+<p>
+	
+<b>Grid size</b>: 1km
+<p>
+	
+<table border="1">
+  <tr>
+    <th><b>Grid</b></th>
+    <th>D</th>
+    <th>E</th>
+    <th>F</th>
+    <th>G</th>
+  </tr>
+  <tr>
+    <td><b>Islands</b></td>
+    <td>Kauai, Niihau            </td>
+    <td>Oahu                     </td>
+    <td>Molokai, Maui, Lanai, Kahoolawe</td>
+    <td>Hawai'i                   </td>
+  </tr>
+  <tr>
+    <td><b>Grid Dimensions</b></td>
+    <td>165 by 116</td>
+    <td>131 by 127</td>
+    <td>205 by 147</td>
+    <td>198 by 218</td>
+  </tr>
+  <tr>
+    <td><b>N(Cells)</b></td>
+    <td>19140</td>
+    <td>16637</td>
+    <td>30135</td>
+    <td>43164</td>
+  </tr>
+  <tr>
+    <td><b>Grid Images</b></td>
+    <td><a href="D_Grid.png"><b>D_Grid.png</b></a></td>
+    <td><a href="E_Grid.png"><b>E_Grid.png</b></a></td>
+    <td><a href="F_Grid.png"><b>F_Grid.png</b></a></td>
+    <td><a href="G_Grid.png"><b>G_Grid.png</b></a></td>
+  </tr>
+  <tr>
+    <td><b>KML Files</b></td>
+    <td><a href="D_Georef.kml"><b>D_Georef.kml</b></a></td>
+    <td><a href="E_Georef.kml"><b>E_Georef.kml</b></a></td>
+    <td><a href="F_Georef.kml"><b>F_Georef.kml</b></a></td>
+    <td><a href="G_Georef.kml"><b>G_Georef.kml</b></a></td>
+  </tr>
+  <tr>
+    <td><b>Grid Point Location Files</b></td>
+    <td><a href="D_Georef.csv"><b>D_Georef.csv</b></a></td>
+    <td><a href="E_Georef.csv"><b>E_Georef.csv</b></a></td>
+    <td><a href="F_Georef.csv"><b>F_Georef.csv</b></a></td>
+    <td><a href="G_Georef.csv"><b>G_Georef.csv</b></a></td>
+  </tr>
+</table>    
+
+<p>(If Google Earth does not start when clicking on one of the KML files, right click the link, save the file and start Google Earth manually.)<p>
+	
+<h2>Publications</h2>
+
+<a href="http://www.nrel.gov/docs/fy10osti/48680.pdf">http://www.nrel.gov/docs/fy10osti/48680.pdf</a> -
+<b>Development of Regional Wind Resource and Wind Plant Output Datasets for the Hawaiian Islands</b>
+- July 2010 report from AWS/Truepower
+
+<h2>OWITS Mesoscale Model Time Series Information</h2>
+
+Time series data files are available from Linux/Unix systems using <b>/alaska/OWITS</b> (<b>/nwtcpool/data/OWITS</b>).
+Ask your friendly Linux SysAdmin for details. (Files are not available from Windows machines.)
+
+<p>Each data file is 14,757,120 bytes and there are 109076 files for a total data volume of 1.61 terabytes.
+	Files are not compressed, but if space is an issue, they can be compressed to about 30% of their original size.
+	
+<pre>
+File Naming Convention:
+<i><b>IVAL</b></i>_<i><b>JVAL</b></i>.HAWAII.<i><b>GRIDVAL</b></i>.txt 
+
+<i><b>IVAL</b></i> = W to E point within model grid
+<i><b>JVAL</b></i> = S to N point within model grid
+<i><b>GRIDVAL</b></i> = Grid Identifier:
+          D - Kauai Grid
+          E - Oahu Grid
+          F - Maui Grid
+          G - Hawaii Grid
+
+Example File Name -> <b>0005_0005.HAWAII.D.txt</b>
+
+The latitude and longitude of each grid point can be
+found in the corresponding grid georeference files:
+D_Georef.csv
+E_Georef.csv
+F_Georef.csv
+G_Georef.csv
+
+Site elevation is not stored in any of the data or index files. If it is needed for any calculations 
+(e.g., wind power density), it will have to be obtained from a separate data base.
+
+Each file contains 2 years (2007-2008) of 10-minute data (105408 records).
+
+Data Fields in Time Series Files:
+
+DATE    ,TIME,TSFC  ,PSFC   ,PCP  ,Q2M  ,DSWRF ,DLWRF ,T10    ,S10 ,W10,T50   ,S50  ,W50,T80   ,S80  ,W80,T100  ,S100 ,W100,T200 ,S200 ,W200
+20070101,0000,298.57,1015.20, 0.00,16.73, 686.0, 419.7,297.07, 6.87,096,296.65, 7.34,096,296.36, 7.54,096,296.16, 7.66,096,295.20, 8.10,096
+
+Where,
+DATE - Date
+TIME - Time (Greenwich Mean Time)
+TSFC - Surface Skin Temperature (K)
+PSFC - Surface Pressure (mb)
+PCP  - Accumulation Precipitation (mm or kg/m^2)
+Q2M  - Specific Humidity at 2M Above Ground Level (g/kg)
+DSWRF - Downward Shortwave Radiation Flux (W/m^2)
+DLWRF - Downward Longwave Radiation Flux (W/m^2)
+T10 - Temperature at 10M Above Ground Level (K)
+S10 - Wind Speed at 10M Above Ground Level (m/s)
+W10 - Wind Direction at 10M Above Ground Level (Degrees)
+T50 - Temperature at 50M Above Ground Level (K)
+S50 - Wind Speed at 50M Above Ground Level (m/s)
+W50 - Wind Direction at 50M Above Ground Level (Degrees)
+T80 - Temperature at 80M Above Ground Level (K)
+S80 - Wind Speed at 80M Above Ground Level (m/s)
+W80 - Wind Direction at 80M Above Ground Level (Degrees)
+T100 - Temperature at 100M Above Ground Level (K)
+S100 - Wind Speed at 100M Above Ground Level (m/s)
+W100 - Wind Direction at 100M Above Ground Level (Degrees)
+T200 - Temperature at 200M Above Ground Level (K)
+S200 - Wind Speed at 200M Above Ground Level (m/s)
+W200 - Wind Direction at 200M Above Ground Level (Degrees)
+</pre>
+
+<hr WIDTH="100%">
+<p>For more information, contact G. Scott at <a href="mailto:george.scott@nrel.gov">george.scott@nrel.gov</a>
+
+</body>
+
+<!-- #####################################################################
+
+<h2>Grid Images</h2>
+
+<ul>
+	<li><a href="D_Grid.png"><b>Grid D</b></a> - Kauai, Niihau</li>
+	<li><a href="E_Grid.png"><b>Grid E</b></a> - Oahu</li>
+	<li><a href="F_Grid.png"><b>Grid F</b></a> - Molokai, Maui, Lanai, Kahoolawe</li>
+	<li><a href="G_Grid.png"><b>Grid G</b></a> - Hawai'i</li>
+</ul>
+
+<h2>KML Files</h2>
+
+<ul>
+	<li><a href="D_Georef.kml"><b>Grid D</b></a> - Kauai, Niihau</li>
+	<li><a href="E_Georef.kml"><b>Grid E</b></a> - Oahu</li>
+	<li><a href="F_Georef.kml"><b>Grid F</b></a> - Molokai, Maui, Lanai, Kahoolawe</li>
+	<li><a href="G_Georef.kml"><b>Grid G</b></a> - Hawai'i</li>
+</ul>
+
+<h2>Grid Point Location Files</h2>
+
+<ul>
+	<li><a href="D_Georef.csv"><b>Grid D</b></a> - Kauai, Niihau</li>
+	<li><a href="E_Georef.csv"><b>Grid E</b></a> - Oahu</li>
+	<li><a href="F_Georef.csv"><b>Grid F</b></a> - Molokai, Maui, Lanai, Kahoolawe</li>
+	<li><a href="G_Georef.csv"><b>Grid G</b></a> - Hawai'i</li>
+</ul>
+
+-->
+<!-- -->
+
+</html>
+

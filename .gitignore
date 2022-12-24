@@ -1,0 +1,15 @@
+.DS_STORE
+*.ipynb
+*.pyc
+.idea
+~$*.xlsx
+Archive/
+*.bak
+old/
+Resource Assessment/NSRDB Hourly Irradiance Data/*
+!Resource Assessment/NSRDB Hourly Irradiance Data/download_nsrdb_data.py
+EV Adoption/NHTS 2017/*
+!EV Adoption/NHTS 2017/data source.txt
+Loads/FERC Form 714 Database/*
+!Loads/FERC Form 714 Database/data source.txt
+api_data.py
