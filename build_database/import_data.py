@@ -2739,21 +2739,33 @@ def renewable_supply_curve():
     supply_curve = pd.read_sql(
         """
             select
-                project_id,
                 -- consolidate DistPV technologies
                 REPLACE(REPLACE(technology, 'FlatDistPV', 'DistPV'), 'SlopedDistPV', 'DistPV') AS technology,
                 max_capacity,
                 sum(max_capacity*cap_factor)/sum(max_capacity) as cap_factor
-            from project
-            join cap_factor using (project_id)
-            group by 1, 2, 3
-            order by 2, 4 desc;
+            from project p
+            join cap_factor c using (project_id)
+            group by p.project_id, 1, 2
+            order by 1, 3 desc;
         """,
-        db_engine,
-        index_col=['project_id', 'technology']
+        db_engine
     )
+    # add the first step on each part of the supply curve (0 cumulative MW)
+    first_points = supply_curve.groupby('technology')[['cap_factor']].max().reset_index()
+    first_points['max_capacity'] = 0
+    supply_curve = (
+        pd.concat([supply_curve, first_points], axis=0, sort=False)
+        .sort_values(
+            ['technology', 'cap_factor', 'max_capacity'],
+            axis=0, ascending=[True, False, True]
+        )
+    )
+    supply_curve['cumulative_mw'] = supply_curve.groupby('technology')['max_capacity'].cumsum()
+    # put the columns in the right order for plotting
+    supply_curve = supply_curve[['technology', 'cumulative_mw', 'cap_factor']]
+
     gis_dir = data_dir('Resource Assessment', 'GIS')
-    supply_curve.to_csv(os.path.join(gis_dir, 're_supply_curve.csv'))
+    supply_curve.to_csv(os.path.join(gis_dir, 're_supply_curve.csv'), index=False)
 
 
 def generator_info():
