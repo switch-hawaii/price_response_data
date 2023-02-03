@@ -1,21 +1,25 @@
+# Overview
 
-********************
-TODO:
-- find re_supply_curve.csv from this vintage and use that to make a supply curve
-  graph that matches the study; add that to the repository
-- see if the 2019 archive has 2007-08 irradiance data from later than 2016 that
-  we may have used to make the DistPV data (maybe version 2 or 3 of NSRDB
-  database?). See if we are using exactly the right version of k_means here
-  (may have been a fixed one a few hours later?) Figure out why we can't
-  "unmix" the distributed PV sites from the distributed PV projects.
-*****************
+This repository contains data and code used to create the data warehouse for
+Switch models of the Oahu power system, and in particular for the paper
+"Real-Time Pricing and the Cost of Clean Power" by Imelda, Matthias Fripp and
+Michael J. Roberts (2023).
 
-This repository contains data and code used to create the data warehouse for Switch
-models of the Oahu power system.
+See [Price Response Study Data Sources.pdf](Price Response Study Data Sources.pdf)
+for a description of the data sources and assumptions used to create this data
+warehouse.
 
-Before beginning, you will need to install various dependencies required for the
-scripts. If using the `conda` package manager, this can be done by running these
-commands:
+See the main study repository at https://doi.org/10.5281/zenodo.7228323 for an
+overview of the study design and repositories and instructions for replicating the
+results. Also see https://github.com/switch-hawaii/price_response for the model
+inputs (the outputs from this repository) and study-specific scripts.
+
+
+# Using this Repository
+
+Before running the code in this repository, you will need to install various
+dependencies required for the scripts. If using the `conda` package manager,
+this can be done by running these commands:
 
 ```
 conda create -n price_response_data -c conda-forge -c nrel scikit-learn=0.21.3 sqlalchemy=1.3.10 numpy=1.17.3 pandas=0.25.2 psycopg2=2.8.4 openpyxl=2.6.4 nrel-pysam=1.2.1 xlrd=1.2.0
@@ -64,6 +68,9 @@ to run an individual model. See `get_scenario_data.py` scripts in various model
 repositories on https://github.com/switch-hawaii/ for examples of how to do
 this.
 
+
+# Main Input Files for the Data Warehouse
+
 These are some of the important input files used to create the data warehouse:
 
 - `Generator Info/build_database/import_data.py`
@@ -81,9 +88,12 @@ These are some of the important input files used to create the data warehouse:
 - `EV Adoption/ev_hourly_charge_profile.tsv`
   - business-as-usual EV charging shapes from http://fsec.ucf.edu/en/publications/pdf/HI-14-17.pdf
 
-The instructions above recreate the data environment used for historical studies
-as closely as possible. However, two factors make it impossible to recreate the
-data exactly:
+
+# Replicating this Work
+
+The instructions above recreate the data environment used for the price response
+study as closely as possible. However, two factors make it impossible to
+recreate the data exactly:
 
 (1) NREL updates the National Solar Radiation Database (NSRDB) periodically, so
     the data files you download from NSRDB are likely to differ slightly from the
@@ -92,3 +102,8 @@ data exactly:
     As of the time we prepared data for this study, the clustering method
     depended on random starting values, so the clustering will be slightly
     different each time new solar data are prepared.
+
+To reproduce the price response study exactly, you may find it more useful to
+begin with the model inputs (outputs from the data warehouse) that we used for
+that study, which are archived in https://doi.org/10.5281/zenodo.7228323 and
+https://github.com/switch-hawaii/price_response.
