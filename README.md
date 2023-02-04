@@ -5,7 +5,7 @@ Switch models of the Oahu power system, and in particular for the paper
 "Real-Time Pricing and the Cost of Clean Power" by Imelda, Matthias Fripp and
 Michael J. Roberts (2023).
 
-See [Price Response Study Data Sources.pdf](Price Response Study Data Sources.pdf)
+See [Price Response Study Data Sources.pdf](Price%20Response%20Study%20Data%20Sources.pdf)
 for a description of the data sources and assumptions used to create this data
 warehouse.
 
